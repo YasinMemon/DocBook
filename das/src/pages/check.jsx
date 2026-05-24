@@ -2,7 +2,10 @@ import React from 'react'
 
 const check = () => {
     return (
-        <div>check</div>
+        <div>
+            new line added
+            checking
+        </div>
     )
 }
 
