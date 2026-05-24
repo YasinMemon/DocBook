@@ -3,6 +3,11 @@ import mongoose from "mongoose";
 
 const UserSchema = new Schema(
   {
+    profilePic: {
+      type: String,
+      default:
+        "https://res.cloudinary.com/das-cloud/image/upload/v1700000000/default-profile-pic.jpg",
+    },
     fullName: {
       type: String,
       required: true,

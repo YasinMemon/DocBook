@@ -17,12 +17,13 @@ import {
   Phone,
   FileText,
   Trash2,
+  Loader,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { getUserData, clearUserAuth, isUserAuthenticated } from "../utils/authUtils";
-import { logoutUser, getUserAppointments, cancelAppointment } from "../api/auth";
+import { logoutUser, getUserAppointments, cancelAppointment, updateUserProfilePicture } from "../api/auth";
 
 const UserProfilePage = () => {
   const navigate = useNavigate();
@@ -48,6 +49,10 @@ const UserProfilePage = () => {
   const [appointmentToCancel, setAppointmentToCancel] = useState(null);
   const [cancellationReason, setCancellationReason] = useState("");
   const [isCancelLoading, setIsCancelLoading] = useState(false);
+  const [showProfilePictureModal, setShowProfilePictureModal] = useState(false);
+  const [selectedProfilePicture, setSelectedProfilePicture] = useState(null);
+  const [previewProfilePicture, setPreviewProfilePicture] = useState(null);
+  const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -161,6 +166,74 @@ const UserProfilePage = () => {
       window.dispatchEvent(new Event("authChanged"));
       navigate("/");
     }
+  };
+
+  const handleProfilePictureSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select a valid image file");
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size must be less than 5MB");
+        return;
+      }
+
+      setSelectedProfilePicture(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewProfilePicture(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setShowProfilePictureModal(true);
+    }
+  };
+
+  const handleUploadProfilePicture = async () => {
+    if (!selectedProfilePicture) {
+      toast.error("Please select an image");
+      return;
+    }
+
+    try {
+      setIsUploadingProfilePicture(true);
+      const response = await updateUserProfilePicture(selectedProfilePicture);
+      
+      // Update user state with new profile picture URL
+      const updatedUser = {
+        ...user,
+        profile_image: response.user.profilePic,
+        profilePic: response.user.profilePic,
+      };
+      
+      // Update localStorage
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      
+      // Trigger auth update event for navbar
+      window.dispatchEvent(new Event("authChanged"));
+      
+      toast.success("Profile picture updated successfully!");
+      setShowProfilePictureModal(false);
+      setSelectedProfilePicture(null);
+      setPreviewProfilePicture(null);
+    } catch (error) {
+      console.error("Error uploading profile picture:", error);
+      toast.error(error.message || "Failed to update profile picture");
+    } finally {
+      setIsUploadingProfilePicture(false);
+    }
+  };
+
+  const handleCloseProfilePictureModal = () => {
+    setShowProfilePictureModal(false);
+    setSelectedProfilePicture(null);
+    setPreviewProfilePicture(null);
   };
 
   const handleInputChange = (e) => {
@@ -346,12 +419,30 @@ const UserProfilePage = () => {
               {/* Profile Summary */}
               <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-white">
                 <div className="relative inline-block">
-                  <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white/30">
-                    {user.fullName?.charAt(0).toUpperCase()}
-                  </div>
-                  <button className="absolute bottom-0 right-0 bg-white text-blue-600 p-2 rounded-full shadow-lg hover:bg-gray-50 transition">
+                  {user.profile_image ? (
+                    <img
+                      src={user.profile_image}
+                      alt={user.fullName}
+                      className="w-24 h-24 rounded-full object-cover border-4 border-white/30"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-3xl font-bold border-4 border-white/30">
+                      {user.fullName?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <label
+                    htmlFor="profile-picture-input"
+                    className="absolute bottom-0 right-0 bg-white text-blue-600 p-2 rounded-full shadow-lg hover:bg-gray-50 transition cursor-pointer"
+                  >
                     <Camera className="w-4 h-4" />
-                  </button>
+                  </label>
+                  <input
+                    id="profile-picture-input"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProfilePictureSelect}
+                    className="hidden"
+                  />
                 </div>
                 <h2 className="text-xl font-semibold mt-4">{user.fullName}</h2>
                 <p className="text-blue-100 text-sm mt-1">{user.email}</p>
@@ -1015,6 +1106,83 @@ const UserProfilePage = () => {
                   <>
                     <Trash2 className="w-4 h-4" />
                     Cancel Appointment
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Picture Modal */}
+      {showProfilePictureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-md bg-black/20 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">Update Profile Picture</h3>
+              <button
+                onClick={handleCloseProfilePictureModal}
+                disabled={isUploadingProfilePicture}
+                className="text-white hover:bg-blue-700 p-1 rounded-lg transition disabled:opacity-50"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              {/* Preview */}
+              {previewProfilePicture && (
+                <div className="flex justify-center">
+                  <img
+                    src={previewProfilePicture}
+                    alt="Preview"
+                    className="w-32 h-32 rounded-full object-cover border-4 border-blue-200"
+                  />
+                </div>
+              )}
+
+              {/* File info */}
+              {selectedProfilePicture && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-700">
+                    <strong>File:</strong> {selectedProfilePicture.name}
+                  </p>
+                  <p className="text-sm text-gray-700">
+                    <strong>Size:</strong> {(selectedProfilePicture.size / 1024).toFixed(2)} KB
+                  </p>
+                </div>
+              )}
+
+              <p className="text-sm text-gray-600 text-center">
+                Your profile picture will be updated immediately.
+              </p>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-gray-50 px-6 py-4 flex gap-3">
+              <button
+                onClick={handleCloseProfilePictureModal}
+                disabled={isUploadingProfilePicture}
+                className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUploadProfilePicture}
+                disabled={isUploadingProfilePicture}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isUploadingProfilePicture ? (
+                  <>
+                    <Loader className="w-4 h-4 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-4 h-4" />
+                    Update Picture
                   </>
                 )}
               </button>

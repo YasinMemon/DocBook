@@ -129,11 +129,14 @@ async function patch(path, body) {
 }
 
 async function put(path, body) {
+  // If body is FormData, send it as-is (do not set Content-Type header)
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
+
   const res = await fetch(buildURL(path), {
     method: "PUT",
     credentials: "include",
-    headers: getAuthHeaders(),
-    body: body ? JSON.stringify(body) : undefined,
+    headers: isForm ? undefined : getAuthHeaders(),
+    body: isForm ? body : body ? JSON.stringify(body) : undefined,
   });
 
   let data;
@@ -250,4 +253,14 @@ export function getBookedAppointmentsForDoctor(doctorId, date) {
 
 export function cancelAppointment(appointmentId, reason = null) {
   return post(`/api/appointment/${appointmentId}/cancel`, { reason });
+}
+
+export function googleLogin(token) {
+  return post("/api/google/login", { token });
+}
+
+export function updateUserProfilePicture(file) {
+  const formData = new FormData();
+  formData.append("profilePic", file);
+  return put("/api/user/profile-picture", formData);
 }

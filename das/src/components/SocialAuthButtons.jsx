@@ -1,8 +1,9 @@
 import React from "react";
 import { GoogleLogin } from "@react-oauth/google";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 import { setUserData } from "../utils/authUtils";
+import { googleLogin } from "../api/auth";
 
 const SocialAuthButtons = ({ signUpMode = false }) => {
   const navigate = useNavigate();
@@ -10,15 +11,13 @@ const SocialAuthButtons = ({ signUpMode = false }) => {
   const handleGoogleSuccess = async (credentialResponse) => {
     try {
       console.log("Google login response received");
-      
-      // Send the ID token to backend for verification
-      const res = await axios.post("http://localhost:5000/api/google/login", {
-        token: credentialResponse.credential, // JWT ID token
-      });
-      
-      const { user, token, role } = res.data;
+
+      // Send the ID token to backend for verification using API helper
+      const res = await googleLogin(credentialResponse.credential);
+
+      const { user, token, role } = res;
       console.log("Google login successful:", { user, token, role });
-      
+
       // Store user data in localStorage using utility function
       setUserData({
         _id: user._id,
@@ -27,19 +26,22 @@ const SocialAuthButtons = ({ signUpMode = false }) => {
         profile_image: user.profile_image,
         role,
       });
-      
+
       // Store token for API requests
       localStorage.setItem("userAuthToken", token);
       localStorage.setItem("userRole", role);
-      
+
       // Dispatch event to notify navbar and other components
       window.dispatchEvent(new Event("authChanged"));
-      
+
+      toast.success("Logged in successfully!");
+
       // Redirect to home page
       navigate("/");
-      
+
     } catch (error) {
-      console.error("Google OAuth error:", error.response?.data || error.message);
+      console.error("Google OAuth error:", error);
+      toast.error(error.message || "Google login failed");
     }
   };
 

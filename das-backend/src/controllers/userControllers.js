@@ -4,10 +4,11 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import Doctor from "../models/DoctorModel.js";
 import Appointment from "../models/AppointmentModel.js";
-import axios from "axios"
+import axios from "axios";
 import { OAuth2Client } from "google-auth-library";
 import sendEmail from "../utils/sendEmail.js";
 import { emailTemplates } from "../utils/emailTemplates.js";
+import { uploadToCloudinary } from "../utils/uploadToCloudinary.js";
 
 async function UserRegister(req, res) {
   try {
@@ -26,9 +27,13 @@ async function UserRegister(req, res) {
     };
 
     const UserModel = await User.create(user);
-    const token = jwt.sign({ id: UserModel._id, role: "user" }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
+    const token = jwt.sign(
+      { id: UserModel._id, role: "user" },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      },
+    );
     console.log("user registration token:", token);
 
     // Send welcome email
@@ -37,9 +42,9 @@ async function UserRegister(req, res) {
       const emailResult = await sendEmail(
         email,
         `Welcome to ${process.env.APP_NAME}!`,
-        emailContent
+        emailContent,
       );
-      
+
       if (emailResult.success) {
         console.log("Welcome email sent successfully to:", email);
       } else {
@@ -64,10 +69,16 @@ async function UserRegister(req, res) {
         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         maxAge: 24 * 60 * 60 * 1000, // 1 day
       })
-      .json({ message: "User registered successfully", user: UserModel, token });
+      .json({
+        message: "User registered successfully",
+        user: UserModel,
+        token,
+      });
   } catch (error) {
     console.error("Error registering user:", error);
-    return res.status(500).json({ message: "Server error during registration" });
+    return res
+      .status(500)
+      .json({ message: "Server error during registration" });
   }
 }
 
@@ -90,9 +101,13 @@ async function UserLogin(req, res) {
     return res.status(401).json({ message: "Invalid email or password" });
   }
 
-  const token = jwt.sign({ id: user._id, role: "user" }, process.env.JWT_SECRET, {
-    expiresIn: "1d",
-  });
+  const token = jwt.sign(
+    { id: user._id, role: "user" },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: "1d",
+    },
+  );
 
   // Clear conflicting cookies
   res.clearCookie("doctorToken");
@@ -106,19 +121,24 @@ async function UserLogin(req, res) {
       sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
       maxAge: 24 * 60 * 60 * 1000, // 1 day
     })
-    .json({ message: "User logged in successfully", user, role: "user", token });
+    .json({
+      message: "User logged in successfully",
+      user,
+      role: "user",
+      token,
+    });
 }
 
 async function GoogleLogin(req, res) {
   try {
     const { token } = req.body;
-    
+
     if (!token) {
       return res.status(400).json({ message: "ID token is required" });
     }
 
     const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-    
+
     // Verify the token with Google
     const ticket = await client.verifyIdToken({
       idToken: token,
@@ -140,14 +160,18 @@ async function GoogleLogin(req, res) {
       });
     }
 
-    const appToken = jwt.sign({ id: user._id, role: "user" }, process.env.JWT_SECRET, {
-      expiresIn: "1d",
-    });
-    
+    const appToken = jwt.sign(
+      { id: user._id, role: "user" },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "1d",
+      },
+    );
+
     // Clear conflicting cookies
     res.clearCookie("doctorToken");
     res.clearCookie("adminToken");
-    
+
     res
       .status(200)
       .cookie("userToken", appToken, {
@@ -156,18 +180,17 @@ async function GoogleLogin(req, res) {
         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         maxAge: 24 * 60 * 60 * 1000, // 1 day
       })
-      .json({ 
-        message: "User logged in with Google successfully", 
-        user: { 
-          _id: user._id, 
-          fullName: user.fullName, 
-          email: user.email, 
-          profile_image: user.profile_image || picture
-        }, 
-        role: "user", 
-        token: appToken 
+      .json({
+        message: "User logged in with Google successfully",
+        user: {
+          _id: user._id,
+          fullName: user.fullName,
+          email: user.email,
+          profile_image: user.profile_image || picture,
+        },
+        role: "user",
+        token: appToken,
       });
-      
   } catch (error) {
     console.error("Error logging in with Google:", error.message);
     return res.status(401).json({ message: "Invalid or expired token" });
@@ -209,7 +232,10 @@ async function GetMyAppointments(req, res) {
   try {
     const userId = req.user.id;
     const appointments = await Appointment.find({ patient: userId })
-      .populate("doctor", "fullName specialty profile_image city phone experience consulation_fee")
+      .populate(
+        "doctor",
+        "fullName specialty profile_image city phone experience consulation_fee",
+      )
       .sort({ appointmentDate: -1 });
 
     if (!appointments) {
@@ -229,6 +255,42 @@ async function GetMyAppointments(req, res) {
   }
 }
 
+async function UpdateProfilePicture(req, res) {
+  try {
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ status: false, message: "Profile picture is required" });
+    }
+
+    const cloudinaryResult = await uploadToCloudinary(
+      req.file.buffer,
+      "profile_pictures",
+    );
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { profilePic: cloudinaryResult.secure_url },
+      { new: true },
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ status: false, message: "User not found" });
+    }
+
+    return res.status(200).json({
+      status: true,
+      user: updatedUser,
+      message: "Profile picture updated successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ status: false, message: "Server error" });
+  }
+}
+
 export {
   UserRegister,
   UserLogin,
@@ -236,4 +298,5 @@ export {
   GetAllVerifiedDoctors,
   GetVerifiedDoctorsBySpecialization,
   GetMyAppointments,
+  UpdateProfilePicture,
 };
