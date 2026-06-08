@@ -47,7 +47,7 @@ const Overview = () => {
       try {
         setLoading(true);
         const response = await fetch(
-          "http://localhost:5000/api/doctor/appointments",
+          "https://docbook-57yh.onrender.com/api/doctor/appointments",
           {
             method: "GET",
             credentials: "include",

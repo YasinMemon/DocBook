@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         "/api": {
-          target: env.VITE_API_BASE_URL || "http://localhost:5000",
+          target: env.VITE_API_BASE_URL || "https://docbook-57yh.onrender.com",
           changeOrigin: true,
           secure: false,
           // keep the /api prefix

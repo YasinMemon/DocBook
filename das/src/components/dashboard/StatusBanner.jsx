@@ -11,7 +11,7 @@ const StatusBanner = () => {
     // Call API to mark message as shown
     try {
       const response = await fetch(
-        "http://localhost:5000/api/doctor/mark-verification-message-shown",
+        "https://docbook-57yh.onrender.com/api/doctor/mark-verification-message-shown",
         {
           method: "POST",
           credentials: "include",
