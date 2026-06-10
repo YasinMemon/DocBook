@@ -4,6 +4,7 @@ import {
   GetMyAppointments,
   GetVerifiedDoctorsBySpecialization,
   GoogleLogin,
+  UpdatePassword,
   UpdateProfilePicture,
   UserLogin,
   UserRegister,
@@ -22,6 +23,12 @@ UserAuthRouter.get(
   GetVerifiedDoctorsBySpecialization,
 );
 UserAuthRouter.get("/user/appointments", verifyToken, GetMyAppointments);
-UserAuthRouter.put("/user/profile-picture", verifyToken, uploads.single("profilePic"), UpdateProfilePicture);
+UserAuthRouter.put(
+  "/user/profile-picture",
+  verifyToken,
+  uploads.single("profilePic"),
+  UpdateProfilePicture,
+);
+UserAuthRouter.post("/user/update-password", verifyToken, UpdatePassword);
 
 export default UserAuthRouter;

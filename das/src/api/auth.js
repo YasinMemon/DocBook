@@ -9,27 +9,27 @@ function buildURL(path) {
 
 function getAuthHeaders() {
   const headers = { "Content-Type": "application/json" };
-  
+
   // Check for admin token first
   const adminToken = localStorage.getItem("adminAuthToken");
   if (adminToken) {
     headers.Authorization = `Bearer ${adminToken}`;
     return headers;
   }
-  
+
   // Check for doctor token
   const doctorToken = localStorage.getItem("doctorAuthToken");
   if (doctorToken) {
     headers.Authorization = `Bearer ${doctorToken}`;
     return headers;
   }
-  
+
   // Check for user token
   const userToken = localStorage.getItem("userAuthToken");
   if (userToken) {
     headers.Authorization = `Bearer ${userToken}`;
   }
-  
+
   return headers;
 }
 
@@ -263,4 +263,8 @@ export function updateUserProfilePicture(file) {
   const formData = new FormData();
   formData.append("profilePic", file);
   return put("/api/user/profile-picture", formData);
+}
+
+export function UpdatePassword(payload) {
+  return post("/api/user/update-password", payload);
 }

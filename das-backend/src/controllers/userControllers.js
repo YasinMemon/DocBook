@@ -186,6 +186,8 @@ async function GoogleLogin(req, res) {
           _id: user._id,
           fullName: user.fullName,
           email: user.email,
+          // profilePic (custom uploaded) takes priority; fall back to Google picture
+          profilePic: user.profilePic || user.profile_image || picture,
           profile_image: user.profile_image || picture,
         },
         role: "user",
@@ -291,6 +293,57 @@ async function UpdateProfilePicture(req, res) {
   }
 }
 
+async function UpdatePassword(req, res) {
+  try {
+    const userId = req.user.id;
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.json({
+        success: false,
+        message: "All fields are required",
+      });
+    }
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const checkPassword = await bcrypt.compare(currentPassword, user.password);
+
+    if (!checkPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password is wrong",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await User.findByIdAndUpdate(userId, {
+      password: hashedPassword,
+    });
+
+    return res.json({
+      success: true,
+      message: "Password updated successfully",
+    });
+  } catch (error) {
+    console.log(error);
+
+    return res.json({
+      success: false,
+      message: "Server error",
+    });
+  }
+}
+
 export {
   UserRegister,
   UserLogin,
@@ -299,4 +352,5 @@ export {
   GetVerifiedDoctorsBySpecialization,
   GetMyAppointments,
   UpdateProfilePicture,
+  UpdatePassword,
 };

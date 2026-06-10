@@ -18,12 +18,14 @@ import {
   FileText,
   Trash2,
   Loader,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { getUserData, clearUserAuth, isUserAuthenticated } from "../utils/authUtils";
-import { logoutUser, getUserAppointments, cancelAppointment, updateUserProfilePicture } from "../api/auth";
+import { logoutUser, getUserAppointments, cancelAppointment, updateUserProfilePicture, UpdatePassword } from "../api/auth";
 
 const UserProfilePage = () => {
   const navigate = useNavigate();
@@ -53,6 +55,9 @@ const UserProfilePage = () => {
   const [selectedProfilePicture, setSelectedProfilePicture] = useState(null);
   const [previewProfilePicture, setPreviewProfilePicture] = useState(null);
   const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
+  const [hidePassword, setHidePassword] = useState(true);
+  const [hideNewPassword, setHideNewPassword] = useState(true);
+  const [hideConfirmPassword, setHideConfirmPassword] = useState(true);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -68,28 +73,9 @@ const UserProfilePage = () => {
       email: userData?.email || "",
     });
 
-    // Fetch user appointments
+    // Fetch user appointments once on mount
     fetchAppointments();
-
-    // Set up periodic refresh every 30 seconds to catch status updates
-    const interval = setInterval(() => {
-      fetchAppointments();
-    }, 30000);
-
-    // Listen for visibility changes to refresh when user comes back to tab
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        fetchAppointments();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    return () => {
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [navigate]);
+  }, []);
 
   const fetchAppointments = async () => {
     try {
@@ -136,24 +122,44 @@ const UserProfilePage = () => {
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setSaveMessage("New passwords don't match!");
+      toast.error("New passwords don't match!");
       return;
     }
 
     if (passwordData.newPassword.length < 8) {
       setSaveMessage("Password must be at least 8 characters!");
+      toast.error("Password must be at least 8 characters!");
       return;
     }
 
-    // TODO: Implement API call to change password
-    setSaveMessage("Password changed successfully!");
-    setShowPasswordChange(false);
-    setPasswordData({
-      currentPassword: "",
-      newPassword: "",
-      confirmPassword: "",
-    });
+    const payload = {
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword,
+    };
 
-    setTimeout(() => setSaveMessage(""), 3000);
+    try {
+      const response = await UpdatePassword(payload);
+
+      if (response.success) {
+        toast.success(response.message || "Password changed successfully!");
+        setSaveMessage("Password changed successfully!");
+        setShowPasswordChange(false);
+        setPasswordData({
+          currentPassword: "",
+          newPassword: "",
+          confirmPassword: "",
+        });
+      } else {
+        toast.error(response.message || "Failed to change password.");
+        setSaveMessage(response.message || "Failed to change password.");
+      }
+    } catch (error) {
+      const msg = error?.data?.message || error?.message || "Something went wrong.";
+      toast.error(msg);
+      setSaveMessage(msg);
+    }
+
+    setTimeout(() => setSaveMessage(""), 4000);
   };
 
   const handleLogout = async () => {
@@ -176,7 +182,7 @@ const UserProfilePage = () => {
         toast.error("Please select a valid image file");
         return;
       }
-      
+
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.error("Image size must be less than 5MB");
@@ -203,21 +209,21 @@ const UserProfilePage = () => {
     try {
       setIsUploadingProfilePicture(true);
       const response = await updateUserProfilePicture(selectedProfilePicture);
-      
+
       // Update user state with new profile picture URL
       const updatedUser = {
         ...user,
         profile_image: response.user.profilePic,
         profilePic: response.user.profilePic,
       };
-      
+
       // Update localStorage
       localStorage.setItem("user", JSON.stringify(updatedUser));
       setUser(updatedUser);
-      
+
       // Trigger auth update event for navbar
       window.dispatchEvent(new Event("authChanged"));
-      
+
       toast.success("Profile picture updated successfully!");
       setShowProfilePictureModal(false);
       setSelectedProfilePicture(null);
@@ -419,9 +425,9 @@ const UserProfilePage = () => {
               {/* Profile Summary */}
               <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-white">
                 <div className="relative inline-block">
-                  {user.profile_image ? (
+                  {user.profilePic ? (
                     <img
-                      src={user.profile_image}
+                      src={user.profilePic}
                       alt={user.fullName}
                       className="w-24 h-24 rounded-full object-cover border-4 border-white/30"
                     />
@@ -686,26 +692,33 @@ const UserProfilePage = () => {
 
                       {showPasswordChange && (
                         <form onSubmit={handlePasswordChange} className="space-y-4 mt-6">
-                          <div>
+                          <div className="relative" >
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Current Password
                             </label>
                             <input
-                              type="password"
+                              type={hidePassword ? "password" : "text"}
                               name="currentPassword"
                               value={passwordData.currentPassword}
                               onChange={handlePasswordInputChange}
                               required
                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
+                            {hidePassword ? (
+                              <Eye className="absolute right-2 top-[50%] cursor-pointer"
+                                onClick={() => setHidePassword(!hidePassword)} />
+                            ) : (
+                              <EyeOff className="absolute right-2 top-[50%] cursor-pointer"
+                                onClick={() => setHidePassword(!hidePassword)} />
+                            )}
                           </div>
 
-                          <div>
+                          <div className="relative" >
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               New Password
                             </label>
                             <input
-                              type="password"
+                              type={hideNewPassword ? "password" : "text"}
                               name="newPassword"
                               value={passwordData.newPassword}
                               onChange={handlePasswordInputChange}
@@ -713,14 +726,21 @@ const UserProfilePage = () => {
                               minLength={8}
                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
+                            {hideNewPassword ? (
+                              <Eye className="absolute right-2 top-[50%] cursor-pointer"
+                                onClick={() => setHideNewPassword(!hideNewPassword)} />
+                            ) : (
+                              <EyeOff className="absolute right-2 top-[50%] cursor-pointer"
+                                onClick={() => setHideNewPassword(!hideNewPassword)} />
+                            )}
                           </div>
 
-                          <div>
+                          <div className="relative" >
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                               Confirm New Password
                             </label>
                             <input
-                              type="password"
+                              type={hideConfirmPassword ? "password" : "text"}
                               name="confirmPassword"
                               value={passwordData.confirmPassword}
                               onChange={handlePasswordInputChange}
@@ -728,6 +748,13 @@ const UserProfilePage = () => {
                               minLength={8}
                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             />
+                            {hideConfirmPassword ? (
+                              <Eye className="absolute right-2 top-[50%] cursor-pointer"
+                                onClick={() => setHideConfirmPassword(!hideConfirmPassword)} />
+                            ) : (
+                              <EyeOff className="absolute right-2 top-[50%] cursor-pointer"
+                                onClick={() => setHideConfirmPassword(!hideConfirmPassword)} />
+                            )}
                           </div>
 
                           <div className="flex gap-3">

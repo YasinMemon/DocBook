@@ -23,6 +23,8 @@ const SocialAuthButtons = ({ signUpMode = false }) => {
         _id: user._id,
         fullName: user.fullName,
         email: user.email,
+        // Store both fields – profilePic is what UserProfilePage reads
+        profilePic: user.profilePic || user.profile_image,
         profile_image: user.profile_image,
         role,
       });

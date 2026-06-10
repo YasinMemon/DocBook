@@ -209,58 +209,81 @@ const DoctorsPage = () => {
 
   const [filteredDoctors, setFilteredDoctors] = useState(allDoctors);
 
+  // Helper: derive a simple availability label from available_days array
+  const getAvailabilityLabel = (doctor) => {
+    // Dummy doctors already have a string availability field
+    if (typeof doctor.availability === "string") return doctor.availability;
+    // Real doctors have available_days: ["Monday", "Wednesday", ...]
+    const days = doctor.available_days || [];
+    if (!days.length) return "This Week";
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const today = new Date();
+    const todayName = dayNames[today.getDay()];
+    const tomorrowName = dayNames[(today.getDay() + 1) % 7];
+    if (days.includes(todayName)) return "Today";
+    if (days.includes(tomorrowName)) return "Tomorrow";
+    return "This Week";
+  };
+
   // Filter and sort doctors whenever filters change
   useEffect(() => {
     let result = [...(allDoctors.length > 0 ? allDoctors : dummyDoctors)];
 
     // Apply search filter
+    // Real doctors use fullName + specialty; dummy doctors use name + specialization
     if (filters.search) {
-      result = result.filter(
-        (doctor) =>
-          doctor.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-          doctor.specialization
-            .toLowerCase()
-            .includes(filters.search.toLowerCase()),
-      );
+      const q = filters.search.toLowerCase();
+      result = result.filter((doctor) => {
+        const name = (doctor.fullName || doctor.name || "").toLowerCase();
+        const spec = (doctor.specialty || doctor.specialization || "").toLowerCase();
+        return name.includes(q) || spec.includes(q);
+      });
     }
 
     // Apply location filter
+    // Real doctors use city; dummy doctors use location
     if (filters.location) {
-      result = result.filter((doctor) =>
-        doctor.location && doctor.location.toLowerCase().includes(filters.location.toLowerCase()),
-      );
+      const q = filters.location.toLowerCase();
+      result = result.filter((doctor) => {
+        const loc = (doctor.city || doctor.location || "").toLowerCase();
+        return loc.includes(q);
+      });
     }
 
     // Apply specialization filter
+    // Real doctors use specialty; dummy doctors use specialization
     if (filters.specialization !== "All Specializations") {
-      result = result.filter(
-        (doctor) => doctor.specialization && doctor.specialization.toLowerCase() === filters.specialization.toLowerCase(),
-      );
+      result = result.filter((doctor) => {
+        const spec = (doctor.specialty || doctor.specialization || "").toLowerCase();
+        return spec === filters.specialization.toLowerCase();
+      });
     }
 
     // Apply availability filter
+    // Real doctors use available_days[]; dummy doctors use availability string
     if (filters.availability !== "Any Time") {
       result = result.filter(
-        (doctor) => doctor.availability === filters.availability,
+        (doctor) => getAvailabilityLabel(doctor) === filters.availability,
       );
     }
 
     // Apply sorting
     switch (filters.sortBy) {
       case "rating":
-        result.sort((a, b) => b.rating - a.rating);
+        result.sort((a, b) => (b.rating || 0) - (a.rating || 0));
         break;
       case "experience":
-        result.sort((a, b) => b.experience - a.experience);
+        result.sort((a, b) => (b.experience || 0) - (a.experience || 0));
         break;
-      case "availability":
+      case "availability": {
         const availabilityOrder = { Today: 1, Tomorrow: 2, "This Week": 3 };
         result.sort(
           (a, b) =>
-            (availabilityOrder[a.availability] || 999) -
-            (availabilityOrder[b.availability] || 999),
+            (availabilityOrder[getAvailabilityLabel(a)] || 999) -
+            (availabilityOrder[getAvailabilityLabel(b)] || 999),
         );
         break;
+      }
       default:
         break;
     }

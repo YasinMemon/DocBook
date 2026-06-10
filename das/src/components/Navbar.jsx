@@ -72,11 +72,10 @@ const Navbar = () => {
               <Link
                 key={link.name}
                 to={link.path}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                  isActive(link.path)
-                    ? "text-blue-600 bg-blue-50"
-                    : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
-                }`}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${isActive(link.path)
+                  ? "text-blue-600 bg-blue-50"
+                  : "text-gray-600 hover:text-blue-600 hover:bg-gray-50"
+                  }`}
               >
                 {link.name}
               </Link>
@@ -91,9 +90,9 @@ const Navbar = () => {
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className="flex items-center gap-2 p-1 pr-3 rounded-full border border-gray-200 hover:border-blue-300 transition-colors"
                 >
-                  {authUser?.profile_image ? (
-                    <img 
-                      src={authUser.profile_image} 
+                  {authUser?.profilePic ? (
+                    <img
+                      src={authUser.profilePic}
                       alt={authUser.fullName}
                       className="w-8 h-8 rounded-full object-cover"
                     />
@@ -122,9 +121,9 @@ const Navbar = () => {
                       {/* User Info Header */}
                       <div className="px-4 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
                         <div className="flex items-center gap-3">
-                          {authUser?.profile_image ? (
-                            <img 
-                              src={authUser.profile_image} 
+                          {authUser?.profilePic ? (
+                            <img
+                              src={authUser.profilePic}
                               alt={authUser.fullName}
                               className="w-10 h-10 rounded-full object-cover"
                             />
@@ -210,11 +209,10 @@ const Navbar = () => {
                   key={link.name}
                   to={link.path}
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className={`block px-4 py-3 rounded-xl text-base font-medium ${
-                    isActive(link.path)
-                      ? "bg-blue-50 text-blue-600"
-                      : "text-gray-600"
-                  }`}
+                  className={`block px-4 py-3 rounded-xl text-base font-medium ${isActive(link.path)
+                    ? "bg-blue-50 text-blue-600"
+                    : "text-gray-600"
+                    }`}
                 >
                   {link.name}
                 </Link>
